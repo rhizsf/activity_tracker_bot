@@ -3,6 +3,7 @@ import logging
 import datetime
 import pytz
 from dotenv import load_dotenv
+# pyrefly: ignore [missing-import]
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,

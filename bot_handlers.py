@@ -145,7 +145,7 @@ async def plan_category_callback(update: Update, context: ContextTypes.DEFAULT_T
     return TOPIC
 
 async def plan_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Stores the topic and asks for the start time."""
+    """Stores the topic and asks for the start time with interactive options."""
     topic = update.message.text.strip()
     if not topic:
         await update.message.reply_text("Topic cannot be empty. Please enter a valid description:")
@@ -153,19 +153,84 @@ async def plan_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     context.user_data["plan_topic"] = topic
     
+    keyboard = [
+        [
+            InlineKeyboardButton("⏰ Sekarang (Now)", callback_data="time_now"),
+            InlineKeyboardButton("⏰ +15 Menit", callback_data="time_15m")
+        ],
+        [
+            InlineKeyboardButton("⏰ +30 Menit", callback_data="time_30m"),
+            InlineKeyboardButton("⌨️ Input Manual", callback_data="time_manual")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     start_info = (
         f"📝 Topic: **{topic}**\n\n"
-        f"⏰ When would you like to start?\n"
-        f"Please enter in one of these formats:\n"
-        f"• `now` (starts immediately)\n"
-        f"• `in 15m` (starts in 15 minutes)\n"
-        f"• `18:30` (starts at a specific WIB time today)"
+        f"⏰ Kapan Anda ingin memulai aktivitas ini?\n"
+        f"Pilih salah satu tombol interaktif di bawah atau klik 'Input Manual':"
     )
-    await update.message.reply_text(start_info, parse_mode="Markdown")
+    await update.message.reply_text(start_info, reply_markup=reply_markup, parse_mode="Markdown")
     return START_TIME
 
+async def plan_start_time_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processes start time buttons and moves to duration selection."""
+    query = update.callback_query
+    await query.answer()
+    
+    selection = query.data
+    local_tz = get_tz()
+    now_local = datetime.now(local_tz)
+    
+    start_dt = None
+    
+    if selection == "time_now":
+        start_dt = now_local
+    elif selection == "time_15m":
+        start_dt = now_local + timedelta(minutes=15)
+    elif selection == "time_30m":
+        start_dt = now_local + timedelta(minutes=30)
+    elif selection == "time_manual":
+        # Ask user to type it manually
+        await query.edit_message_text(
+            text=(
+                "⏰ **Input Waktu Manual**\n\n"
+                "Silakan ketik waktu mulai dalam format berikut:\n"
+                "• `in 10m` (dalam 10 menit)\n"
+                "• `18:30` (jam spesifik hari ini)"
+            ),
+            parse_mode="Markdown"
+        )
+        return START_TIME
+
+    context.user_data["plan_start_dt"] = start_dt
+    
+    keyboard = [
+        [
+            InlineKeyboardButton("⏳ 30 Menit", callback_data="dur_30m"),
+            InlineKeyboardButton("⏳ 45 Menit", callback_data="dur_45m")
+        ],
+        [
+            InlineKeyboardButton("⏳ 1 Jam", callback_data="dur_1h"),
+            InlineKeyboardButton("⏳ 1.5 Jam", callback_data="dur_1.5h")
+        ],
+        [
+            InlineKeyboardButton("⏳ 2 Jam", callback_data="dur_2h"),
+            InlineKeyboardButton("⌨️ Input Manual", callback_data="dur_manual")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    duration_info = (
+        f"⏰ Waktu Mulai: **{start_dt.strftime('%H:%M WIB (%Y-%m-%d)')}**\n\n"
+        f"⏳ Berapa durasi aktivitas ini?\n"
+        f"Pilih salah satu tombol interaktif di bawah atau klik 'Input Manual':"
+    )
+    await query.edit_message_text(duration_info, reply_markup=reply_markup, parse_mode="Markdown")
+    return DURATION
+
 async def plan_start_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Parses and stores start time, then asks for duration."""
+    """Parses and stores manual text start time, then presents duration options."""
     raw_input = update.message.text.strip().lower()
     local_tz = get_tz()
     now_local = datetime.now(local_tz)
@@ -183,32 +248,152 @@ async def plan_start_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
             hour = int(time_parts[0])
             minute = int(time_parts[1])
             start_dt = now_local.replace(hour=hour, minute=minute, second=0, microsecond=0)
-            # If the scheduled time has already passed today, assume it is for tomorrow
             if start_dt < now_local:
                 start_dt += timedelta(days=1)
         else:
             raise ValueError
     except Exception:
         await update.message.reply_text(
-            "⚠️ Invalid format. Please enter `now`, `in 15m`, or a 24h time like `18:30`:"
+            "⚠️ Format tidak valid. Ketik `now`, `in 15m`, atau jam 24h seperti `18:30`:"
         )
         return START_TIME
 
     context.user_data["plan_start_dt"] = start_dt
     
+    keyboard = [
+        [
+            InlineKeyboardButton("⏳ 30 Menit", callback_data="dur_30m"),
+            InlineKeyboardButton("⏳ 45 Menit", callback_data="dur_45m")
+        ],
+        [
+            InlineKeyboardButton("⏳ 1 Jam", callback_data="dur_1h"),
+            InlineKeyboardButton("⏳ 1.5 Jam", callback_data="dur_1.5h")
+        ],
+        [
+            InlineKeyboardButton("⏳ 2 Jam", callback_data="dur_2h"),
+            InlineKeyboardButton("⌨️ Input Manual", callback_data="dur_manual")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     duration_info = (
-        f"⏰ Start Time: **{start_dt.strftime('%H:%M WIB (%Y-%m-%d)')}**\n\n"
-        f"⏳ What is the duration of this activity?\n"
-        f"Please enter in one of these formats:\n"
-        f"• `45m` (45 minutes)\n"
-        f"• `2h` or `2` (2 hours)\n"
-        f"• `1.5` (1.5 hours)"
+        f"⏰ Waktu Mulai: **{start_dt.strftime('%H:%M WIB (%Y-%m-%d)')}**\n\n"
+        f"⏳ Berapa durasi aktivitas ini?\n"
+        f"Pilih salah satu tombol interaktif di bawah atau klik 'Input Manual':"
     )
-    await update.message.reply_text(duration_info, parse_mode="Markdown")
+    await update.message.reply_text(duration_info, reply_markup=reply_markup, parse_mode="Markdown")
     return DURATION
 
+async def plan_duration_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processes duration buttons, logging to spreadsheet and ending conversation."""
+    query = update.callback_query
+    await query.answer()
+    
+    selection = query.data
+    
+    if selection == "dur_manual":
+        await query.edit_message_text(
+            text=(
+                "⏳ **Input Durasi Manual**\n\n"
+                "Silakan ketik durasi aktivitas (misalnya: `45m`, `1.5h`, atau `2`):"
+            ),
+            parse_mode="Markdown"
+        )
+        return DURATION
+        
+    duration_hours = 0.0
+    duration_delta = None
+    
+    if selection == "dur_30m":
+        duration_hours = 0.5
+        duration_delta = timedelta(minutes=30)
+    elif selection == "dur_45m":
+        duration_hours = 0.75
+        duration_delta = timedelta(minutes=45)
+    elif selection == "dur_1h":
+        duration_hours = 1.0
+        duration_delta = timedelta(hours=1)
+    elif selection == "dur_1.5h":
+        duration_hours = 1.5
+        duration_delta = timedelta(hours=1.5)
+    elif selection == "dur_2h":
+        duration_hours = 2.0
+        duration_delta = timedelta(hours=2)
+
+    category = context.user_data["plan_category"]
+    topic = context.user_data["plan_topic"]
+    start_dt = context.user_data["plan_start_dt"]
+    end_dt = start_dt + duration_delta
+    
+    date_str = start_dt.strftime("%Y-%m-%d")
+    start_str = start_dt.strftime("%H:%M")
+    end_str = end_dt.strftime("%H:%M")
+    
+    await query.edit_message_text(text="⏳ Menyimpan rencana ke Google Sheets...")
+    
+    success = await spreadsheet_utils.log_activity(
+        date_str=date_str,
+        category=category,
+        topic=topic,
+        start_time=start_str,
+        end_time=end_str,
+        status="Pending",
+        duration=round(duration_hours, 2)
+    )
+    
+    if not success:
+        await query.edit_message_text("❌ Database Sync Failed. Plan was not logged. Try `/plan` again.")
+        return ConversationHandler.END
+
+    chat_id = update.effective_chat.id
+    
+    lead_time = timedelta(minutes=10)
+    pre_alert_dt = start_dt - lead_time
+    local_tz = get_tz()
+    now_local = datetime.now(local_tz)
+    
+    if pre_alert_dt > now_local:
+        context.job_queue.run_once(
+            pre_activity_reminder,
+            when=pre_alert_dt,
+            chat_id=chat_id,
+            name=f"pre_{category}_{topic}",
+            data={"category": category, "topic": topic, "start_time": start_str}
+        )
+        logger.info(f"Scheduled pre-activity reminder for {topic} at {pre_alert_dt}")
+
+    if category == "Relaxing":
+        context.job_queue.run_once(
+            relaxing_active_warning,
+            when=start_dt,
+            chat_id=chat_id,
+            name=f"relax_warn_{topic}",
+            data={"topic": topic}
+        )
+        logger.info(f"Scheduled relaxing active warning at {start_dt}")
+
+    context.job_queue.run_once(
+        post_activity_checkin,
+        when=end_dt,
+        chat_id=chat_id,
+        name=f"post_{category}_{topic}",
+        data={"category": category, "topic": topic}
+    )
+    logger.info(f"Scheduled post-activity checkin for {topic} at {end_dt}")
+
+    summary = (
+        f"✅ **Rencana aktivitas berhasil disimpan!**\n\n"
+        f"📁 Kategori: **{category}**\n"
+        f"📝 Topik: **{topic}**\n"
+        f"📅 Tanggal: **{date_str}**\n"
+        f"⏰ Waktu: **{start_str} - {end_str} WIB** ({round(duration_hours, 2)} jam)\n\n"
+        f"🔔 Pengingat telah dijadwalkan secara otomatis."
+    )
+    await query.edit_message_text(summary, parse_mode="Markdown")
+    return ConversationHandler.END
+
 async def plan_duration(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Parses duration, logs activity as Pending, schedules notifications, and finishes."""
+    """Parses manual text duration, logs to spreadsheet, schedules notifications, and finishes."""
     raw_input = update.message.text.strip().lower()
     duration_hours = 0.0
     duration_delta = None
@@ -230,7 +415,7 @@ async def plan_duration(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if duration_hours <= 0:
             raise ValueError
     except ValueError:
-        await update.message.reply_text("⚠️ Invalid duration. Enter positive numbers like `45m`, `1.5h`, or `2`:")
+        await update.message.reply_text("⚠️ Durasi tidak valid. Masukkan angka positif seperti `45m`, `1.5h`, atau `2`:")
         return DURATION
 
     category = context.user_data["plan_category"]
@@ -242,8 +427,7 @@ async def plan_duration(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_str = start_dt.strftime("%H:%M")
     end_str = end_dt.strftime("%H:%M")
     
-    # Log to Google Sheets
-    await update.message.reply_text("⏳ Syncing with Google Sheets...")
+    await update.message.reply_text("⏳ Menyimpan rencana ke Google Sheets...")
     success = await spreadsheet_utils.log_activity(
         date_str=date_str,
         category=category,
@@ -258,14 +442,12 @@ async def plan_duration(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Database Sync Failed. Plan was not logged. Try `/plan` again.")
         return ConversationHandler.END
 
-    # Schedule Pre-Activity Alert
-    # Standard: remind 10 minutes before
+    chat_id = update.effective_chat.id
+    
     lead_time = timedelta(minutes=10)
     pre_alert_dt = start_dt - lead_time
     local_tz = get_tz()
     now_local = datetime.now(local_tz)
-    
-    chat_id = update.effective_chat.id
     
     if pre_alert_dt > now_local:
         context.job_queue.run_once(
@@ -277,7 +459,6 @@ async def plan_duration(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         logger.info(f"Scheduled pre-activity reminder for {topic} at {pre_alert_dt}")
 
-    # Schedule Active Warning for Relaxing blocks when the activity starts
     if category == "Relaxing":
         context.job_queue.run_once(
             relaxing_active_warning,
@@ -288,7 +469,6 @@ async def plan_duration(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         logger.info(f"Scheduled relaxing active warning at {start_dt}")
 
-    # Schedule Post-Activity Check-In immediately after duration ends
     context.job_queue.run_once(
         post_activity_checkin,
         when=end_dt,
@@ -299,12 +479,12 @@ async def plan_duration(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"Scheduled post-activity checkin for {topic} at {end_dt}")
 
     summary = (
-        f"✅ **Activity Planned successfully!**\n\n"
-        f"📁 Category: **{category}**\n"
-        f"📝 Topic: **{topic}**\n"
-        f"📅 Date: **{date_str}**\n"
-        f"⏰ Time: **{start_str} - {end_str} WIB** ({round(duration_hours, 2)} hrs)\n\n"
-        f"🔔 Alerts are set. Stay disciplined."
+        f"✅ **Rencana aktivitas berhasil disimpan!**\n\n"
+        f"📁 Kategori: **{category}**\n"
+        f"📝 Topik: **{topic}**\n"
+        f"📅 Tanggal: **{date_str}**\n"
+        f"⏰ Waktu: **{start_str} - {end_str} WIB** ({round(duration_hours, 2)} jam)\n\n"
+        f"🔔 Pengingat telah dijadwalkan secara otomatis."
     )
     await update.message.reply_text(summary, parse_mode="Markdown")
     return ConversationHandler.END
