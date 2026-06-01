@@ -389,7 +389,9 @@ async def plan_duration_callback(update: Update, context: ContextTypes.DEFAULT_T
         f"⏰ Waktu: **{start_str} - {end_str} WIB** ({round(duration_hours, 2)} jam)\n\n"
         f"🔔 Pengingat telah dijadwalkan secara otomatis."
     )
-    await query.edit_message_text(summary, parse_mode="Markdown")
+    keyboard = [[InlineKeyboardButton("🏠 Back to Start", callback_data="back_to_menu")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(summary, reply_markup=reply_markup, parse_mode="Markdown")
     return ConversationHandler.END
 
 async def plan_duration(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -486,7 +488,9 @@ async def plan_duration(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"⏰ Waktu: **{start_str} - {end_str} WIB** ({round(duration_hours, 2)} jam)\n\n"
         f"🔔 Pengingat telah dijadwalkan secara otomatis."
     )
-    await update.message.reply_text(summary, parse_mode="Markdown")
+    keyboard = [[InlineKeyboardButton("🏠 Back to Start", callback_data="back_to_menu")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(summary, reply_markup=reply_markup, parse_mode="Markdown")
     return ConversationHandler.END
 
 async def plan_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -582,7 +586,9 @@ async def activity_completion_callback(update: Update, context: ContextTypes.DEF
     else:
         response_text = "⚠️ Status update completed, but could not locate matching Pending record in Google Sheets."
         
-    await query.edit_message_text(text=response_text, parse_mode="Markdown")
+    keyboard = [[InlineKeyboardButton("🏠 Back to Start", callback_data="back_to_menu")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text=response_text, reply_markup=reply_markup, parse_mode="Markdown")
 
 # --- /habit_check Flow ---
 
@@ -641,8 +647,11 @@ async def habit_loc_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     await spreadsheet_utils.log_habit_and_sleep(today_str, "Location Safe", value)
     
+    keyboard = [[InlineKeyboardButton("🏠 Back to Start", callback_data="back_to_menu")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
     await query.edit_message_text(
-        text="✨ **Habits Logged Successfully!**\n\nBoth 90/20 Breaks and Workspace Safety have been saved. Maintain discipline!"
+        text="✨ **Habits Logged Successfully!**\n\nBoth 90/20 Breaks and Workspace Safety have been saved. Maintain discipline!",
+        reply_markup=reply_markup
     )
 
 # --- Sleep & Wake Scheduler & Callbacks ---
@@ -678,7 +687,9 @@ async def sleep_btn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     else:
         response = "⚠️ **Late Night Warning!**\nLate sleep logged. Keep it to a minimum; try to rest as soon as possible."
         
-    await query.edit_message_text(text=response, parse_mode="Markdown")
+    keyboard = [[InlineKeyboardButton("🏠 Back to Start", callback_data="back_to_menu")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text=response, reply_markup=reply_markup, parse_mode="Markdown")
 
 async def morning_wake_check(context: ContextTypes.DEFAULT_TYPE):
     """Scheduled task at 05:15 WIB daily to log wake adherence."""
@@ -709,7 +720,9 @@ async def wake_btn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         response = "⚠️ **Sleep-in Logged.**\nRemember, consistency in waking up is the foundation of self-control. Drop and do **5 push-ups** now to shake off the morning sluggishness!"
         
-    await query.edit_message_text(text=response, parse_mode="Markdown")
+    keyboard = [[InlineKeyboardButton("🏠 Back to Start", callback_data="back_to_menu")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text=response, reply_markup=reply_markup, parse_mode="Markdown")
 
 # --- /sos Command Flow (Emergency Interrupter) ---
 
@@ -792,7 +805,9 @@ async def sos_redirect_callback(update: Update, context: ContextTypes.DEFAULT_TY
             f"You are in full control."
         )
         
-    await query.edit_message_text(text=final_text)
+    keyboard = [[InlineKeyboardButton("🏠 Back to Start", callback_data="back_to_menu")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text=final_text, reply_markup=reply_markup)
 
 async def menu_button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Router for main menu buttons."""

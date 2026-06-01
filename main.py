@@ -20,7 +20,9 @@ from bot_handlers import (
     plan_category_callback,
     plan_topic,
     plan_start_time,
+    plan_start_time_callback,
     plan_duration,
+    plan_duration_callback,
     plan_cancel,
     activity_completion_callback,
     habit_check_start,
@@ -122,8 +124,14 @@ def main() -> None:
         states={
             CATEGORY: [CallbackQueryHandler(plan_category_callback, pattern="^cat_")],
             TOPIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, plan_topic)],
-            START_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, plan_start_time)],
-            DURATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, plan_duration)],
+            START_TIME: [
+                CallbackQueryHandler(plan_start_time_callback, pattern="^time_"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, plan_start_time)
+            ],
+            DURATION: [
+                CallbackQueryHandler(plan_duration_callback, pattern="^dur_"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, plan_duration)
+            ],
         },
         fallbacks=[CommandHandler("cancel", plan_cancel)],
         per_message=False,
