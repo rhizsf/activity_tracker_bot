@@ -33,6 +33,7 @@ from bot_handlers import (
     sos_pushups_callback,
     sos_breathing_callback,
     sos_redirect_callback,
+    menu_button_callback,
     CATEGORY,
     TOPIC,
     START_TIME,
@@ -113,7 +114,10 @@ def main() -> None:
 
     # 1. Define Conversation Handler for `/plan`
     plan_conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("plan", plan_start)],
+        entry_points=[
+            CommandHandler("plan", plan_start),
+            CallbackQueryHandler(plan_start, pattern="^menu_plan$")
+        ],
         states={
             CATEGORY: [CallbackQueryHandler(plan_category_callback, pattern="^cat_")],
             TOPIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, plan_topic)],
@@ -140,6 +144,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(sos_pushups_callback, pattern="^sos_pushups$"))
     application.add_handler(CallbackQueryHandler(sos_breathing_callback, pattern="^sos_breathing$"))
     application.add_handler(CallbackQueryHandler(sos_redirect_callback, pattern="^sos_redirect"))
+    application.add_handler(CallbackQueryHandler(menu_button_callback, pattern="^(menu_habit|menu_sos|menu_help|back_to_menu)$"))
 
     # Start the bot polling execution loop
     logger.info("Daily Activity Tracker Bot is starting up. Polling Telegram servers...")

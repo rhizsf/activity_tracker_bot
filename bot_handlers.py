@@ -63,20 +63,28 @@ def get_tz():
 
 @authorized_only
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Greets the user and shows available commands and sleep goals."""
+    """Greets the user and shows available commands and sleep goals with interactive buttons."""
     welcome_text = (
         "📊 **Daily Activity Tracker Bot**\n\n"
         "Welcome! This bot helps you log your study plans and track your habits in real-time.\n\n"
         "🎯 **Target Routine Goals:**\n"
         "• Sleep: **22:00 WIB**\n"
         "• Wake Up: **05:00 WIB**\n\n"
-        "🛠️ **Available Commands:**\n"
-        "• `/plan` - Schedule a study or obligation block\n"
-        "• `/habit_check` - Log your wellness habits (90/20 break, workspace safety)\n"
-        "• `/sos` - Emergency **Anti-Gagal-Fokus Alert** (Push-ups & grounding)\n"
-        "• `/help` - View detailed usage instructions"
+        "🎛️ **Quick Actions Control Panel:**\n"
+        "Select a button below to quickly run any action:"
     )
-    await update.message.reply_text(welcome_text, parse_mode="Markdown")
+    keyboard = [
+        [
+            InlineKeyboardButton("📅 Plan Activity", callback_data="menu_plan"),
+            InlineKeyboardButton("🧠 Habit Check", callback_data="menu_habit")
+        ],
+        [
+            InlineKeyboardButton("🚨 Trigger SOS", callback_data="menu_sos"),
+            InlineKeyboardButton("💡 Get Help", callback_data="menu_help")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode="Markdown")
 
 @authorized_only
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -113,7 +121,13 @@ async def plan_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🏛️ Daily Obligations", callback_data="cat_4")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("📋 Select the activity category:", reply_markup=reply_markup)
+    text = "📋 Select the activity category:"
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        await query.edit_message_text(text, reply_markup=reply_markup)
+    else:
+        await update.message.reply_text(text, reply_markup=reply_markup)
     return CATEGORY
 
 async def plan_category_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -402,11 +416,13 @@ async def habit_check_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        "🧠 **Wellness Habit Check (1/2)**\n\nDid you follow the **90/20 break rule** today?",
-        reply_markup=reply_markup,
-        parse_mode="Markdown"
-    )
+    text = "🧠 **Wellness Habit Check (1/2)**\n\nDid you follow the **90/20 break rule** today?"
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+    else:
+        await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
 
 async def habit_break_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Logs 90/20 Break response and displays second question: Location Safety."""
@@ -533,7 +549,12 @@ async def sos_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Force the blood back to your muscles, break the cognitive loop, and change your physical posture. "
         "Click the button below once you have completed all 5 repetitions."
     )
-    await update.message.reply_text(sos_text, reply_markup=reply_markup)
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        await query.edit_message_text(sos_text, reply_markup=reply_markup)
+    else:
+        await update.message.reply_text(sos_text, reply_markup=reply_markup)
 
 async def sos_pushups_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Proceeds to breathing after somatic verification."""
@@ -592,3 +613,59 @@ async def sos_redirect_callback(update: Update, context: ContextTypes.DEFAULT_TY
         )
         
     await query.edit_message_text(text=final_text)
+
+async def menu_button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Router for main menu buttons."""
+    query = update.callback_query
+    await query.answer()
+    
+    action = query.data
+    
+    if action == "menu_habit":
+        await habit_check_start(update, context)
+    elif action == "menu_sos":
+        await sos_command(update, context)
+    elif action == "menu_help":
+        help_text = (
+            "💡 **How to Use the Daily Activity Tracker Bot:**\n\n"
+            "1️⃣ **Planning an Activity (`/plan`):**\n"
+            "   - Select a category (Coding, Reading, Relaxing, or Obligations).\n"
+            "   - Type in the topic description.\n"
+            "   - Type the start time. Supports `14:30`, `in 10m` (minutes), or `now`.\n"
+            "   - Type the duration. Supports `45m` (minutes) or `1.5h` / `2` (hours).\n"
+            "   - **Pre-Activity Alert:** Triggers 10 minutes prior to warm up.\n"
+            "   - **Post-Activity Check-In:** Prompts you at the end to check if you completed the task.\n\n"
+            "2️⃣ **Daily Habits Check (`/habit_check`):**\n"
+            "   - Log 90/20 breaks and learning environment safety.\n\n"
+            "3️⃣ **Emergency Interrupter (`/sos`):**\n"
+            "   - Use this command if you are experiencing focus lapses or negative urges during relaxing periods.\n"
+            "   - Demands 5 push-ups and breathing exercises to break loops.\n\n"
+            "4️⃣ **Automatic Reminders:**\n"
+            "   - **21:45 WIB:** Sleep preparation alert.\n"
+            "   - **05:15 WIB:** Morning wake-up check."
+        )
+        keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="back_to_menu")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(help_text, reply_markup=reply_markup, parse_mode="Markdown")
+    elif action == "back_to_menu":
+        welcome_text = (
+            "📊 **Daily Activity Tracker Bot**\n\n"
+            "Welcome! This bot helps you log your study plans and track your habits in real-time.\n\n"
+            "🎯 **Target Routine Goals:**\n"
+            "• Sleep: **22:00 WIB**\n"
+            "• Wake Up: **05:00 WIB**\n\n"
+            "🎛️ **Quick Actions Control Panel:**\n"
+            "Select a button below to quickly run any action:"
+        )
+        keyboard = [
+            [
+                InlineKeyboardButton("📅 Plan Activity", callback_data="menu_plan"),
+                InlineKeyboardButton("🧠 Habit Check", callback_data="menu_habit")
+            ],
+            [
+                InlineKeyboardButton("🚨 Trigger SOS", callback_data="menu_sos"),
+                InlineKeyboardButton("💡 Get Help", callback_data="menu_help")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(welcome_text, reply_markup=reply_markup, parse_mode="Markdown")
